@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # if you see this, stuff went down
 # Version
-VERSION="b0.0.1";
+VERSION="b0.0.4";
 # Colors
 G='\033[0;32m';
 NC='\033[0;0m';
@@ -32,9 +32,7 @@ spinner() {
     done
 }
 
-if [ -f "$HOME/.local/bin/ronix" ]; then
-	printf "${R}${B}[E] ${NC}Ronix is already installed!\n"
-else
+ronix_install() {
 	printf "${BL}${B}[I] ${NC}Log file is stored in $LOGFOLDER/$function-$date\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
 	printf "${BL}${B}[I] ${NC}Installing Ronix...\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
 	printf "${BL}${B}[I] ${NC}Copying Files" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
@@ -43,13 +41,33 @@ else
 	sleep 3;
 	mkdir -p $HOME/.local/bin;
 	cp --verbose files/.local/bin/ronix ~/.local/bin/ronix >> "$LOGFOLDER/$function-$date";
-	cp --verbose files/.config/ronix/config.sh ~/.config/ronix/config.sh >> "$LOGFOLDER/$function-$date";
+	case $REINSTALL in
+		"true") printf "Reinstall detected, not copying config file" >> "$LOGFOLDER/$function-$date" ;;
+		*) cp --verbose files/.config/ronix/config.sh ~/.config/ronix/config.sh >> "$LOGFOLDER/$function-$date" ;;
+	esac
 	kill $!;
 	printf "\n${BL}${B}[I] ${NC}Install finished!\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
-	read -p "Start the Ronix first-time setup? [y/N] ";
+	case $REINSTALL in
+		"true") ;;
+		*)
+			read -p "Start the Ronix first-time setup? [y/N] ";
+			case $REPLY in
+				Y) $HOME/.local/bin/ronix ;;
+				y) $HOME/.local/bin/ronix ;;
+				*) exit ;;
+			esac ;;
+	esac
+}
+
+if [ -f "$HOME/.local/bin/ronix" ]; then
+	printf "${R}${B}[E] ${NC}Ronix is already installed!\n"
+	read -p "Reinstall Ronix? [y/N] ";
 	case $REPLY in
-		Y) $HOME/.local/bin/ronix ;;
-		y) $HOME/.local/bin/ronix ;;
+		Y) rm $HOME/.local/bin/ronix && REINSTALL="true" ronix_install ;;
+		y) rm $HOME/.local/bin/ronix && REINSTALL="true" ronix_install ;;
 		*) exit ;;
 	esac
+
+else
+	ronix_install
 fi

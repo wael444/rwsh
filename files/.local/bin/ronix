@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # if you see this, stuff went down
 # Version
-VERSION="b0.0.2";
+VERSION="b0.0.4";
 # Colors
 G='\033[0;32m';
 NC='\033[0;0m';
@@ -30,6 +30,15 @@ spinner() {
     done
 }
 
+help() {
+	printf "${BL}${B}[I] ${NC}Available commands:
+${O}${B}--createwineprefix (Create a new wineprefix, usage: ronix --createwineprefix foo)
+--wineprefixes (List of wineprefixes)
+--version (Ronix version)
+--installroblox (Installs Roblox into a wineprefix, usage: ronix --installroblox foo)
+--help (Shows this block of text)\n"; 
+}
+
 # Wineprefix creation command
 wineprefix_init() {
 	function="wineprefix_init";
@@ -40,11 +49,11 @@ wineprefix_init() {
 	fi
 	printf "${BL}${B}[I] ${NC}Creating wineprefix $1 " 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
 	spinner &
-	WINEPREFIX="$ROOTFOLDER/$1" $WINEBINARY wineboot 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null;
+	WINEPREFIX="$ROOTFOLDER/$1" $FALLBACK_WINEBINARY wineboot 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null;
 	kill "$!";
 	case "$?" in
 		0) ;;
-		1) printf "${R}${B}[E] ${NC}Wine failed creating the wineprefix! Check the logfile for more information" 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null && exit 1 ;;
+		*) printf "${R}${B}[E] ${NC}Wine failed creating the wineprefix! Check the logfile for more information" 2>&1 | tee -a "$LOGFOLDER/$function-$date" && exit 1 ;;
 	esac
 	printf "\n${BL}${B}[I] ${NC}Wineprefix $1 created! ($ROOTFOLDER/$1)\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
 }
@@ -59,6 +68,10 @@ wineprefix_list() {
 first_time_setup() {
 	function="first_time_setup";
 	date=$(date +"%Y%m%d-%H-%M-%S");
+	if [ -f "$WINEBINARY" ]; then
+		printf "${R}${B}[E] ${NC}No working Wine binary found! Aborting...";
+		exit 1;
+	fi
 	printf "${BL}${B}[I] ${NC}Log file is stored in $LOGFOLDER/$function-$date\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
 	printf "${BL}${B}[I] ${NC}Performing checks...\n";
 	if [ -d "$ROOTFOLDER/player" ]; then
@@ -73,7 +86,58 @@ first_time_setup() {
 	wineprefix_init studio
 	printf "${BL}${B}[I] ${NC}Wineprefixes created! Applying changes to config file...\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
 	sed 's/FIRST_TIME="true"/FIRST_TIME="false"/' $CONFIGFOLDER/config.sh -i
+	exit
+}
 
+roblox_install() {
+	function="roblox_install_$1";
+	date=$(date +"%Y%m%d-%H-%M-%S");
+	printf "${BL}${B}[I] ${NC}Log file is stored in $LOGFOLDER/$function-$date\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	printf "${BL}${B}[I] ${NC}Installing Roblox into $1\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	printf "${BL}${B}[I] ${NC}Downloading the Roblox installer " 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	spinner &
+	curl -Ls https://www.roblox.com/download/client --output /tmp/robloxinstaller.exe 2>&1 >> "$LOGFOLDER/$function-$date";
+	kill "$!";
+	case "$?" in
+		0) ;;
+		*) printf "${R}${B}[E] ${NC}The Roblox installer failed downloading! Check the logfile for more information\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date" && exit 1 ;;
+	esac
+	"${1}"_config;
+	printf "\n${BL}${B}[I] ${NC}Launching Roblox Installer...\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+	if [ -n "$WINEBINARY" ]; then
+		if [ -f "$WINEBINARY" ]; then	
+			printf "${BL}${B}[I] ${NC}Wine binary found! ('$WINEBINARY')\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+			printf "${BL}${B}[I] ${NC}Launching Wine... " 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+			spinner &
+			WINEPREFIX="$ROOTFOLDER/$1" $WINEBINARY /tmp/robloxinstaller.exe 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null;
+			kill "$!"
+			case "$?" in
+				0) ;;
+				*) printf "${R}${B}[E] ${NC}Wine failed running the Roblox installer! Check the logfile for more information\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date" && exit 1 ;;
+			esac
+		else
+			printf "${R}${B}[E] ${NC}Invalid Wine binary '$WINEBINARY'! Falling back to the fallback Wine binary\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+			printf "${BL}${B}[I] ${NC}Launching Wine... " 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+			spinner &
+			WINEPREFIX="$ROOTFOLDER/$1" $FALLBACK_WINEBINARY /tmp/robloxinstaller.exe 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null;
+			kill "$!"
+			case "$?" in
+				0) ;;
+				*) printf "${R}${B}[E] ${NC}Wine failed running the Roblox installer! Check the logfile for more information\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date" && exit 1 ;;
+			esac
+			exit 1;
+		fi
+	else
+		printf "${R}${B}[E] ${NC}Invalid Wine binary '$WINEBINARY'! Falling back to the fallback Wine binary\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+		printf "${BL}${B}[I] ${NC}Launching Wine... " 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+		spinner &
+		WINEPREFIX="$ROOTFOLDER/$1" $FALLBACK_WINEBINARY /tmp/robloxinstaller.exe 2>&1 | tee -a "$LOGFOLDER/$function-$date" 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null;
+		kill "$!"
+		case "$?" in
+			0) ;;
+			*) printf "${R}${B}[E] ${NC}Wine failed running the Roblox installer! Check the logfile for more information\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date" && exit 1 ;;
+		esac
+	fi
 }
 
 case "$FIRST_TIME" in
@@ -85,4 +149,7 @@ case "$1" in
 	--wineprefixes) wineprefix_list ;;
 	--createwineprefix) wineprefix_init "$2" ;;
 	--version) printf "Ronix $VERSION\n" ;;
+	--help) help ;;
+	--installroblox) roblox_install "$2" ;; 
+	*) printf "${R}${B}[E] ${NC}Invalid command! Use --help for a list of commands\n" && exit 1 ;;
 esac
