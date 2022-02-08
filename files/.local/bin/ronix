@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# if you see this, stuff went down
+# Version
+VERSION="b0.0.2";
+# Colors
+G='\033[0;32m';
+NC='\033[0;0m';
+B='\033[1m';
+NB='\033[0m';
+BL='\033[0;34m';
+R='\033[0;31m';
+O='\033[0;33m';
+[ "$EUID" -eq 0 ] && printf "${R}${B}[E] ${NC}Running on root is not supported.\n" && exit 1;
+LOGFOLDER="$HOME/.local/var/log/ronix";
+ROOTFOLDER="$HOME/.local/share/ronix";
+CONFIGFOLDER="$HOME/.config/ronix";
+mkdir -p "$LOGFOLDER";
+mkdir -p "$CONFIGFOLDER";
+mkdir -p "$ROOTFOLDER";
+source "$CONFIGFOLDER/config.sh";
+# Code from stackexchange
+# This justs make a cool animated spinning |
+spinner() {
+    local i sp n
+    sp='/-\|'
+    n=${#sp}
+    printf ' ';
+    while sleep 0.1; do
+        printf "%s\b" "${sp:i++%n:1}";
+    done
+}
+
+# Wineprefix creation command
+wineprefix_init() {
+	function="wineprefix_init";
+	date=$(date +"%Y%m%d-%H-%M-%S");
+	printf "${BL}${B}[I] ${NC}Log file is stored in $LOGFOLDER/$function-$date\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	if [ -d "$ROOTFOLDER/$1" ]; then
+		printf "${R}${B}[E] ${NC}Wineprefix $1 already exists! Exiting...\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date" && exit 1; 
+	fi
+	printf "${BL}${B}[I] ${NC}Creating wineprefix $1 " 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	spinner &
+	WINEPREFIX="$ROOTFOLDER/$1" $WINEBINARY wineboot 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null;
+	kill "$!";
+	case "$?" in
+		0) ;;
+		1) printf "${R}${B}[E] ${NC}Wine failed creating the wineprefix! Check the logfile for more information" 2>&1 | tee -a "$LOGFOLDER/$function-$date" >/dev/null && exit 1 ;;
+	esac
+	printf "\n${BL}${B}[I] ${NC}Wineprefix $1 created! ($ROOTFOLDER/$1)\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+}
+
+# Wineprefix list
+wineprefix_list() {
+	printf "${BL}${B}[I] ${NC}Available wineprefixes:\n${O}${B}"
+	cd "$ROOTFOLDER"
+	echo */ | tr " " "\n"
+}
+
+first_time_setup() {
+	function="first_time_setup";
+	date=$(date +"%Y%m%d-%H-%M-%S");
+	printf "${BL}${B}[I] ${NC}Log file is stored in $LOGFOLDER/$function-$date\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	printf "${BL}${B}[I] ${NC}Performing checks...\n";
+	if [ -d "$ROOTFOLDER/player" ]; then
+		printf "${O}${B}[W] ${NC}Wineprefix 'player' already exists\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	fi
+	if [ -d "$ROOTFOLDER/studio" ]; then
+		printf "${O}${B}[W] ${NC}Wineprefix 'studio' already exists\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date"; 
+	fi
+	printf "${BL}${B}[I] ${NC}Initializing wineprefix_init...\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+	wineprefix_init player
+	printf "${BL}${B}[I] ${NC}Initializing wineprefix_init...\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+	wineprefix_init studio
+	printf "${BL}${B}[I] ${NC}Wineprefixes created! Applying changes to config file...\n" 2>&1 | tee -a "$LOGFOLDER/$function-$date";
+	sed 's/FIRST_TIME="true"/FIRST_TIME="false"/' $CONFIGFOLDER/config.sh -i
+
+}
+
+case "$FIRST_TIME" in
+	"true") first_time_setup ;;
+	*) ;;
+esac
+
+case "$1" in
+	--wineprefixes) wineprefix_list ;;
+	--createwineprefix) wineprefix_init "$2" ;;
+	--version) printf "Ronix $VERSION\n" ;;
+esac
