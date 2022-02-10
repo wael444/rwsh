@@ -1,1 +1,1 @@
-WINEBINARY="/usr/bin/wine"
+WINEPATH="/usr/bin/wine"
