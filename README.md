@@ -1,3 +1,1 @@
-# Ronix
-Hello there,
-Ronix is a simple and CLI-based roblox+wine wrapper.
+complete rewrite of [ronix](https://gitea.com/Ronix/Ronix)

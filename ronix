@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -e
+set -x
+
+print() {
+  case $1 in
+    info) echo "$(tput bold)[$(tput setaf 2)*$(tput sgr0)$(tput bold)]$(tput sgr0) $2" ;;
+    err) echo "$(tput bold)[$(tput setaf 1)X$(tput sgr0)$(tput bold)]$(tput sgr0) $2" && exit 1;;
+  esac
+}
+
+[ "$EUID" -eq 0 ] && print err "script cannot be run as root" ;
+
+resourcedir="$HOME/.local/share/ronix"
+configfile="$HOME/.config/ronix/config"
+source "$configfile"
+
+
+usage() {
+	cat <<EOF 
+usage: ${0##*/} [OPTIONS]
+
+Options:
+-c [wineprefix]     Create a new wineprefix
+-l                  List wineprefixes
+-v                  Show version
+-k [wineprefix]     Kill wineprefix
+-i [wineprefix]     install Roblox
+EOF
+}
+
+wineprefix_init() {
+  [ ! -d $resourcedir ] && print info "Created Resources Directory" && mkdir -p "${resourcedir}"
+	[ -d "${resourcedir}/$1" ] && print err "wineprefix $1 already exists"
+	print info "creating wineprefix"
+  mkdir "${resourcedir}/$1"
+	WINEPREFIX="${resourcedir}/$1" $WINEBINARY wineboot 2>&1 || print err "wineprefix init fail"
+	print info "wineprefix $1 created"
+}
+
+roblox_install() {
+  [ ! -d $resourcedir ] && print info "Created Resources Directory" && mkdir -p "${resourcedir}"
+  [ ! -d $resourcedir/$1 ] && print err "wineprefix supplied does not exist"
+  [ $resourcedir/$1 = $resourcedir ] && print err "wineprefix is invalid"
+	[ ! -f "$WINEBINARY" ] && print err "wine binary does not exist"
+	print info "installing Roblox into $1"
+	print info "downloading Roblox client"
+	curl -L https://www.roblox.com/download/client -o /tmp/rblx.exe || print err "roblox client download fail"
+	print info "launching Roblox client"
+	WINEPREFIX="${resourcedir}/$1" $WINEBINARY /tmp/rblx.exe || print err "roblox installation fail"}
+}
+
+main() {
+  case "$1" in
+  	-l) find ${resourcedir} -maxdepth 1 -type d -printf "%f\n" | sed 1d ;;
+  	-c) wineprefix_init "$2" ;;
+  	-v) printf "Ronix $VERSION\n" ;;
+    -k) WINEPREFIX="${resourcedir}/$2" wineserver -k ;;
+  	-i) roblox_install "$2" ;; 
+  	*)  usage  ;;
+  esac
+}
+
+main "$@"
