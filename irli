@@ -3,7 +3,7 @@ set -ex
 
 [ ! "$EUID" -eq 0 ]
 
-WINEPATH=/home/wael/.local/share/grapejuice/user/wine-download/wine-tkg-staging-fsync-git-7.2.r0.g68441b1d
+# WINEPATH=/home/wael/.local/share/grapejuice/user/wine-download/wine-tkg-staging-fsync-git-7.2.r0.g68441b1d
 WINE=$WINEPATH/bin/wine
 WINESERVER=$WINEPATH/bin/wineserver
 WINEDLLPATH=$WINEPATH/lib/x86_64-unix:$WINEPATH/lib/x86_64-windows:$WINEPATH/lib32/x86_64-unix:$WINEPATH/lib32/x86_64-windows
