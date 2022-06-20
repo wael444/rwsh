@@ -17,7 +17,6 @@ deskdir=$sharedir/applications
 [ ! -d $resourcedir ] && mkdir -pv $resourcedir
 [ ! -d $deskdir ] && mkdir -pv $deskdir
 [ ! -f $deskdir/$progname.desktop ] && cat << EOF > $deskdir/$progname.desktop && xdg-mime default $progname.desktop x-scheme-handler/roblox-player
-w
 [Desktop Entry]
 Type=Application
 Name=Roblox App
