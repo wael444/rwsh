@@ -7,7 +7,10 @@ PROGNAME="${0##*/}"
 SHAREDIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 RESDIR="$SHAREDIR/$PROGNAME"
 APPDIR="$SHAREDIR"/applications
+ENVFILE="${XDG_CONFIG_HOME:-$HOME/.config}/$PROGNAME/env"
 
+# shellcheck source=/dev/null
+[ -f "$ENVFILE" ] && . "$ENVFILE"
 [ ! -d "$RESDIR" ] && mkdir -pv "$RESDIR"
 [ ! -d "$APPDIR" ] && mkdir -pv "$APPDIR"
 [ ! -f "$APPDIR/$PROGNAME.desktop" ] && cat << EOIRLIDESKTOPFILE > "$APPDIR/$PROGNAME.desktop"
@@ -26,24 +29,43 @@ install_dxvk() {
 	rm -rfv /tmp/dxvk-1.10.1
 }
 
+install_fpsunlocker() {
+	curl -L https://github.com/axstin/rbxfpsunlocker/releases/download/v4.4.2/rbxfpsunlocker-x64.zip | zcat > "$RESDIR"/rbxfpsunlocker.exe
+}
+
 install_roblox() {
 	curl -L https://www.roblox.com/download/client -o /tmp/rblx.exe
 	$WINE /tmp/rblx.exe
 	rm -rv /tmp/rblx.exe
 }
 
+launch_fpsunlocker() {
+	[ ! -f "$RESDIR"/rbxfpsunlocker.exe ] && install_fpsunlocker
+	$WINE "$RESDIR"/rbxfpsunlocker.exe
+}
+
 launch_roblox() {
 	find "$RESDIR" -name RobloxPlayerLauncher.exe || install_roblox
+	[ "$RWSH_FPSUNLOCKER_ENABLE" = true ] && launch_fpsunlocker &
 	MANGOHUD=1 $WINE "$(find "$RESDIR" -name RobloxPlayerLauncher.exe)" "$@"
 }
 
+# shellcheck disable=SC2034
 case $1 in
-	-p|--play)
-	  shift
-	  launch_roblox "$@"
-	;;
+	-p|--play) shift; launch_roblox "$@" ;;
 	-i|--install) install_roblox ;;
-	-k|--kill|--kill_wineprefix) $WINESERVER -k ;;
+	-k|--kill) $WINESERVER -k ;;
 	-d|--install_dxvk) install_dxvk ;;
-	*) echo "usage: $PROGNAME [-p|--play] [-i|--install] [-k|--kill|--kill_wineprefix] [-d|--install_dxvk]"
+	-f|--launch_fpsu) launch_fpsunlocker ;;
+	-F|--install_fpsu) install_fpsunlocker ;;
+	-h|--help|*)  
+usage="$PROGNAME [OPTION] [ARGS]" # this is intentional behavior since -x flag is called 
+usage="-p --play <args>      launch roblox"
+usage="-i --install          install roblox"
+usage="-k --kill             kill wineprefix"
+usage="-d --install_dxvk     install DXVK to wineprefix"
+usage="-f --launch_fpsu      launch rbxfpsunlocker"
+usage="-F --install_fpsu     install rbxfpsunlocker"
+usage="-h --help             display this page"
+		;;
 esac
