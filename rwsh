@@ -13,13 +13,13 @@ ENVFILE="${XDG_CONFIG_HOME:-$HOME/.config}/$PROGNAME/env"
 [ -f "$ENVFILE" ] && . "$ENVFILE"
 [ ! -d "$RESDIR" ] && mkdir -pv "$RESDIR"
 [ ! -d "$APPDIR" ] && mkdir -pv "$APPDIR"
-[ ! -f "$APPDIR/$PROGNAME.desktop" ] && cat << EOIRLIDESKTOPFILE > "$APPDIR/$PROGNAME.desktop"
+[ ! -f "$APPDIR/$PROGNAME.desktop" ] && cat << EODESKTOPFILE > "$APPDIR/$PROGNAME.desktop"
 [Desktop Entry]
 Type=Application
 Name=Roblox App
 Exec=$0 --play %u
 Categories=Game;
-EOIRLIDESKTOPFILE
+EODESKTOPFILE
 xdg-mime default "$PROGNAME".desktop x-scheme-handler/roblox-player
 export WINEPREFIX="$RESDIR"
 
@@ -47,7 +47,7 @@ launch_fpsunlocker() {
 launch_roblox() {
 	find "$RESDIR" -name RobloxPlayerLauncher.exe || install_roblox
 	[ "$RWSH_FPSUNLOCKER_ENABLE" = true ] && launch_fpsunlocker &
-	MANGOHUD=1 $WINE "$(find "$RESDIR" -name RobloxPlayerLauncher.exe)" "$@"
+	$WINE "$(find "$RESDIR" -name RobloxPlayerLauncher.exe)" "$@"
 }
 
 # shellcheck disable=SC2034
