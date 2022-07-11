@@ -1,0 +1,49 @@
+#!/usr/bin/env -S sh -ex
+[ ! "$(id -u)" -eq 0 ]
+
+WINE="$WINEPATH/bin/wine"
+WINESERVER="$WINEPATH/bin/wineserver"
+PROGNAME="${0##*/}"
+SHAREDIR="${XDG_DATA_HOME:-$HOME/.local/share}"
+RESDIR="$SHAREDIR/$PROGNAME"
+APPDIR="$SHAREDIR"/applications
+
+[ ! -d "$RESDIR" ] && mkdir -pv "$RESDIR"
+[ ! -d "$APPDIR" ] && mkdir -pv "$APPDIR"
+[ ! -f "$APPDIR/$PROGNAME.desktop" ] && cat << EOIRLIDESKTOPFILE > "$APPDIR/$PROGNAME.desktop"
+[Desktop Entry]
+Type=Application
+Name=Roblox App
+Exec=$0 --play %u
+Categories=Game;
+EOIRLIDESKTOPFILE
+xdg-mime default "$PROGNAME".desktop x-scheme-handler/roblox-player
+export WINEPREFIX="$RESDIR"
+
+install_dxvk() {
+	curl -L https://github.com/doitsujin/dxvk/releases/download/v1.10.1/dxvk-1.10.1.tar.gz | tar -xz -C /tmp
+	/tmp/dxvk-1.10.1/setup_dxvk.sh install
+	rm -rfv /tmp/dxvk-1.10.1
+}
+
+install_roblox() {
+	curl -L https://www.roblox.com/download/client -o /tmp/rblx.exe
+	$WINE /tmp/rblx.exe
+	rm -rv /tmp/rblx.exe
+}
+
+launch_roblox() {
+	find "$RESDIR" -name RobloxPlayerLauncher.exe || install_roblox
+	MANGOHUD=1 $WINE "$(find "$RESDIR" -name RobloxPlayerLauncher.exe)" "$@"
+}
+
+case $1 in
+	-p|--play)
+	  shift
+	  launch_roblox "$@"
+	;;
+	-i|--install) install_roblox ;;
+	-k|--kill|--kill_wineprefix) $WINESERVER -k ;;
+	-d|--install_dxvk) install_dxvk ;;
+	*) echo "usage: $PROGNAME [-p|--play] [-i|--install] [-k|--kill|--kill_wineprefix] [-d|--install_dxvk]"
+esac
