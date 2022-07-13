@@ -1,12 +1,21 @@
 # rwsh - Roblox Wine wrapper in SHell
 
+## deps
++ working POSIX sh `/bin/sh`
++ XDG utilities
++ curl
++ gzip
++ wine and wine 32-bit libraries
+
 ## running rwsh
-in order to use rwsh you need to have the XDG utilities and wine.
+in order to use rwsh you need to have the rwsh dependencies.
 ```sh
 curl -LO https://raw.githubusercontent.com/wael444/rwsh/main/rwsh
 ```
 this will pull the `rwsh` script into the current working directory.
 it is reccomended to put this in your `PATH` (eg. `~/.local/bin` or `/usr/local/bin`)
+
+
 
 ## features
 + install roblox automatically if not detected
