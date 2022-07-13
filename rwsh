@@ -26,7 +26,7 @@ export WINEPREFIX="$RESDIR"
 
 fpsunlocker_handler() {
 	[ ! -f "$RESDIR"/rbxfpsunlocker.exe ] && \
-		echo "[*] installing fpsunlocker"
+		echo "[*] installing fpsunlocker" \
 		curl -L https://github.com/axstin/rbxfpsunlocker/releases/download/v4.4.2/rbxfpsunlocker-x64.zip | zcat > "$RESDIR"/rbxfpsunlocker.exe
 	echo "[*] launching fpsunlocker"
 	$WINE "$RESDIR"/rbxfpsunlocker.exe
