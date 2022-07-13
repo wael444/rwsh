@@ -1,5 +1,5 @@
-#!/usr/bin/env -S sh -ex
-[ ! "$(id -u)" -eq 0 ]
+#!/usr/bin/env -S sh -e
+[ "$(id -u)" -eq 0 ] && echo 'please run as normal user' >&2 && exit 1
 
 WINE="$WINEPATH/bin/wine"
 WINESERVER="$WINEPATH/bin/wineserver"
@@ -7,65 +7,84 @@ PROGNAME="${0##*/}"
 SHAREDIR="${XDG_DATA_HOME:-$HOME/.local/share}"
 RESDIR="$SHAREDIR/$PROGNAME"
 APPDIR="$SHAREDIR"/applications
+APPFILE="$APPDIR/$PROGNAME.desktop"
 ENVFILE="${XDG_CONFIG_HOME:-$HOME/.config}/$PROGNAME/env"
 
 # shellcheck source=/dev/null
 [ -f "$ENVFILE" ] && . "$ENVFILE"
 [ ! -d "$RESDIR" ] && mkdir -pv "$RESDIR"
 [ ! -d "$APPDIR" ] && mkdir -pv "$APPDIR"
-[ ! -f "$APPDIR/$PROGNAME.desktop" ] && cat << EODESKTOPFILE > "$APPDIR/$PROGNAME.desktop"
+[ ! -f "$APPFILE" ] && cat << EODESKTOPFILE > "$APPFILE" 
 [Desktop Entry]
 Type=Application
 Name=Roblox App
-Exec=$0 --play %u
+Exec=$0 -p %u
 Categories=Game;
 EODESKTOPFILE
 xdg-mime default "$PROGNAME".desktop x-scheme-handler/roblox-player
 export WINEPREFIX="$RESDIR"
 
-install_dxvk() {
-	curl -L https://github.com/doitsujin/dxvk/releases/download/v1.10.1/dxvk-1.10.1.tar.gz | tar -xz -C /tmp
-	/tmp/dxvk-1.10.1/setup_dxvk.sh install
-	rm -rfv /tmp/dxvk-1.10.1
-}
-
-install_fpsunlocker() {
-	curl -L https://github.com/axstin/rbxfpsunlocker/releases/download/v4.4.2/rbxfpsunlocker-x64.zip | zcat > "$RESDIR"/rbxfpsunlocker.exe
-}
-
-install_roblox() {
-	curl -L https://www.roblox.com/download/client -o /tmp/rblx.exe
-	$WINE /tmp/rblx.exe
-	rm -rv /tmp/rblx.exe
-}
-
-launch_fpsunlocker() {
-	[ ! -f "$RESDIR"/rbxfpsunlocker.exe ] && install_fpsunlocker
+fpsunlocker_handler() {
+	[ ! -f "$RESDIR"/rbxfpsunlocker.exe ] && \
+		echo "[*] installing fpsunlocker"
+		curl -L https://github.com/axstin/rbxfpsunlocker/releases/download/v4.4.2/rbxfpsunlocker-x64.zip | zcat > "$RESDIR"/rbxfpsunlocker.exe
+	echo "[*] launching fpsunlocker"
 	$WINE "$RESDIR"/rbxfpsunlocker.exe
 }
 
+dxvk_handler() {
+	echo "[*] launching DXVK handler"
+	curl -L https://github.com/doitsujin/dxvk/releases/download/v1.10.1/dxvk-1.10.1.tar.gz | tar -xz -C /tmp
+	/tmp/dxvk-1.10.1/setup_dxvk.sh "$1" 
+	rm -rfv /tmp/dxvk-1.10.1
+}
+
+get_roblox_directory() {
+	echo "$RESDIR"/drive_c/Program\ Files\ \(x86\)/Roblox/Versions/version-*
+}
+
+install_roblox() {
+	echo "[*] installing roblox"
+	curl -L https://www.roblox.com/download/client -o /tmp/rblx.exe
+	$WINE /tmp/rblx.exe
+	rm -rfv /tmp/rblx.exe
+}
+
 launch_roblox() {
-	find "$RESDIR" -name RobloxPlayerLauncher.exe || install_roblox
-	[ "$RWSH_FPSUNLOCKER_ENABLE" = true ] && launch_fpsunlocker &
-	$WINE "$(find "$RESDIR" -name RobloxPlayerLauncher.exe)" "$@"
+	echo "[*] launching roblox"
+	[ -f "$(get_roblox_directory)"/RobloxPlayerLauncher.exe ] || install_roblox
+	roblox_directory="$(get_roblox_directory)"
+	[ -n "$RWSH_FFLAGS" ] && { 
+		echo "[*] applying roblox fflags"
+		csdir="$roblox_directory/ClientSettings"
+		[ ! -d "$csdir" ] && mkdir -pv "$csdir"	
+		echo "$RWSH_FFLAGS" > "$csdir"/ClientAppSettings.json
+	}
+	[ "$RWSH_FPSUNLOCKER_ENABLE" = true ] && fpsunlocker_handler &
+	[ ! "$#" = 0 ] # error on 0 arguments
+	$WINE "$roblox_directory/RobloxPlayerLauncher.exe" "$@"
 }
 
 # shellcheck disable=SC2034
 case $1 in
-	-p|--play) shift; launch_roblox "$@" ;;
-	-i|--install) install_roblox ;;
-	-k|--kill) $WINESERVER -k ;;
-	-d|--install_dxvk) install_dxvk ;;
-	-f|--launch_fpsu) launch_fpsunlocker ;;
-	-F|--install_fpsu) install_fpsunlocker ;;
+	-p) shift; launch_roblox "$@" ;;
+	-i) install_roblox ;;
+	-k) $WINESERVER -k ;;
+	-d) rm -rfv "$RESDIR" "$APPFILE" ;;
+	-x) dxvk_handler "$2" ;;
+	-f) fpsunlocker_handler ;;
 	-h|--help|*)  
-usage="$PROGNAME [OPTION] [ARGS]" # this is intentional behavior since -x flag is called 
-usage="-p --play <args>      launch roblox"
-usage="-i --install          install roblox"
-usage="-k --kill             kill wineprefix"
-usage="-d --install_dxvk     install DXVK to wineprefix"
-usage="-f --launch_fpsu      launch rbxfpsunlocker"
-usage="-F --install_fpsu     install rbxfpsunlocker"
-usage="-h --help             display this page"
-		;;
+		cat <<-EOUSAGE
+		usage: $PROGNAME [OPTION] [ARGS]
+
+		OPTIONS
+			-p <args>               launch roblox
+			-i                      install roblox
+			-k                      kill wineprefix
+			-d                      remove all $PROGNAME files except configuration
+			-x <install,uninstall>  DXVK handler 
+			-f                      rbxfpsunlocker handler
+			-h --help               display this page
+		EOUSAGE
+	;;
 esac
